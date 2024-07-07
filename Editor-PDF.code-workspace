@@ -7,6 +7,9 @@
 	"settings": {
 		"cSpell.caseSensitive": false,
 		"cSpell.allowCompoundWords": true,
-		"material-icon-theme.folders.theme": "classic"
+		"material-icon-theme.folders.theme": "classic",
+		"cSpell.words": [
+			"pypdf"
+		]
 	}
 }
