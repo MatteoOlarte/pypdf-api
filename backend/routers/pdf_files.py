@@ -112,7 +112,7 @@ async def protect_pdf(
         uploaded_files: Annotated[list[UploadFile], Depends(file_uploads)],
         user_password: Annotated[str, Query(..., description='password to protect the PDF file')],
         strict: Annotated[bool, Query(..., description='strict mode')] = False
-):
+) -> StreamingResponse:
     """
     Protect a PDF file with a password.
     - **uploaded_files**: Files to be protected.
@@ -151,7 +151,7 @@ async def protect_pdf(
 async def unlock_pdf(
         upload_file: Annotated[UploadFile, Depends(file_upload)],
         password: Annotated[str, Query(..., description='password to unlock the PDF file')]
-):
+) -> StreamingResponse:
     """
     Unlock a PDF file with a password.
     - **upload_file**: File to be unlocked.
@@ -186,3 +186,10 @@ async def unlock_pdf(
         media_type='application/pdf',
         headers=headers
     )
+
+
+@router.post('/split')
+async def split_pdf(
+        upload_file: Annotated[UploadFile, Depends(file_upload)]
+):
+    ...

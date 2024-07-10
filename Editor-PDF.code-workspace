@@ -9,6 +9,7 @@
 		"cSpell.allowCompoundWords": true,
 		"material-icon-theme.folders.theme": "classic",
 		"cSpell.words": [
+			"pydantic",
 			"pypdf"
 		]
 	}
