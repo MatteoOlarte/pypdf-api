@@ -9,8 +9,10 @@
 		"cSpell.allowCompoundWords": true,
 		"material-icon-theme.folders.theme": "classic",
 		"cSpell.words": [
+			"dotenv",
 			"pydantic",
 			"pypdf"
-		]
+		],
+		"python.analysis.typeCheckingMode": "standard"
 	}
 }

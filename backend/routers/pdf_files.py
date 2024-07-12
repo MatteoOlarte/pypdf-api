@@ -1,5 +1,6 @@
 import io
 import zipfile
+from functools import reduce
 from typing import Annotated
 
 import pypdf
@@ -9,11 +10,12 @@ from fastapi import (
     UploadFile,
     status,
     Depends,
-    File,
     Query
 )
 from fastapi.responses import StreamingResponse
 from pypdf.errors import PyPdfError
+
+from ..dependencies import file_uploads, file_upload
 
 MAX_FILE_SIZE = 200
 router = APIRouter(prefix='/pdf_files', tags=['PDF Utilities'])
@@ -26,41 +28,19 @@ non_pdf_error = HTTPException(
 )
 
 
-def _to_bytes(pdf_writer: pypdf.PdfWriter) -> io.BytesIO:
+def __to_bytes(pdf_writer: pypdf.PdfWriter) -> io.BytesIO:
     buffer = io.BytesIO()
     pdf_writer.write(buffer)
     buffer.seek(0)
     return buffer
 
 
-def _validate_size_or_raise(upload_files: Annotated[list[UploadFile], File(...)]) -> None:
-    file_size = sum(file.size for file in upload_files) / 1_000_000
-    if file_size > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f'file size is larger than {MAX_FILE_SIZE:<1}mb limit',
-            headers={
-                'X-Error': 'FileTooLarge'
-            }
-        )
-
-
-def file_uploads(files: Annotated[list[UploadFile], File(...)]) -> list[UploadFile]:
-    _validate_size_or_raise(files)
-    return files
-
-
-def file_upload(file: Annotated[UploadFile, File(...)]) -> UploadFile:
-    _validate_size_or_raise([file])
-    return file
-
-
-def zip_files(files: dict[str, pypdf.PdfWriter]):
+def __zip_files(files: dict[str, pypdf.PdfWriter]):
     zip_io = io.BytesIO()
 
     with zipfile.ZipFile(zip_io, 'w') as zip_file:
         for name, i in files.items():
-            file_io = _to_bytes(i)
+            file_io = __to_bytes(i)
             zip_file.writestr(f'{name}', file_io.getvalue())
 
     return zip_io
@@ -101,7 +81,7 @@ async def merge_pdf(
         'Content-Disposition': f'attachment; filename=merged_pdf.pdf'
     })
     return StreamingResponse(
-        content=iter([_to_bytes(writer).getvalue()]),
+        content=iter([__to_bytes(writer).getvalue()]),
         media_type='application/pdf',
         headers=headers
     )
@@ -135,7 +115,7 @@ async def protect_pdf(
                 raise non_pdf_error
             continue
 
-    zip_file = zip_files(pdf_files)
+    zip_file = __zip_files(pdf_files)
     headers = {
         'Content-Type': 'application/pdf',
         'Content-Disposition': f'attachment; filename=protected_pdf.zip'
@@ -168,7 +148,7 @@ async def unlock_pdf(
         if reader.is_encrypted:
             reader.decrypt(password)
         writer = pypdf.PdfWriter(clone_from=reader)
-        file_io = _to_bytes(writer)
+        file_io = __to_bytes(writer)
     except PyPdfError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -188,7 +168,7 @@ async def unlock_pdf(
     )
 
 
-@router.post('/split')
+@router.post('/split', deprecated=True)
 async def split_pdf(
         upload_file: Annotated[UploadFile, Depends(file_upload)]
 ):
