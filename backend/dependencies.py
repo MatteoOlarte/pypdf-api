@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from .core.db import SessionLocal
 from .core.utils import file_utils
 from .core.utils import user_utils
+from .config import MAX_FILE_SIZE
 
 load_dotenv('.env')
 oauth2 = OAuth2PasswordBearer(tokenUrl='/auth/signin')
@@ -27,12 +28,12 @@ def get_db() -> Generator[Session, Any, None]:
 
 
 def file_uploads(files: Annotated[list[UploadFile], File(...)]) -> list[UploadFile]:
-    file_utils.check_size_or_raise(files)
+    file_utils.check_size_or_raise(files, MAX_FILE_SIZE)
     return files
 
 
 def file_upload(file: Annotated[UploadFile, File(...)]) -> UploadFile:
-    file_utils.check_size_or_raise([file])
+    file_utils.check_size_or_raise([file], MAX_FILE_SIZE)
     return file
 
 

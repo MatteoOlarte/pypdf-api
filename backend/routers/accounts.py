@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from ..core.models.user import ModelUser
 from ..core.schemas import user as user_schemas
-from ..core.schemas.token import Token
+from ..core.schemas import Token
 from ..core.utils import user_utils
 from ..dependencies import get_db, get_current_user
 

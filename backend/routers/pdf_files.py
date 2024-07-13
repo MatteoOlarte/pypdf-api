@@ -1,6 +1,6 @@
 import io
 import zipfile
-from functools import reduce
+from enum import Enum
 from typing import Annotated
 
 import pypdf
@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from pypdf.errors import PyPdfError
 
 from ..dependencies import file_uploads, file_upload
+from ..core.utils import pair
 
 MAX_FILE_SIZE = 200
 router = APIRouter(prefix='/pdf_files', tags=['PDF Utilities'])
@@ -26,6 +27,11 @@ non_pdf_error = HTTPException(
         'X-Error': 'NonPDFFile'
     }
 )
+
+
+class SplitMode(str, Enum):
+    PAGE_RANGES = 'ranges'
+    PAGE_EXTRACT = 'extract'
 
 
 def __to_bytes(pdf_writer: pypdf.PdfWriter) -> io.BytesIO:
@@ -44,6 +50,35 @@ def __zip_files(files: dict[str, pypdf.PdfWriter]):
             zip_file.writestr(f'{name}', file_io.getvalue())
 
     return zip_io
+
+
+def __split_pdf(pdf_reader: pypdf.PdfReader, ranges: list[int]) -> dict[str, pypdf.PdfWriter]:
+    range_pairs = list(pair(ranges))
+    out: dict[str, pypdf.PdfWriter] = {}
+    
+    for i, range_pair in enumerate(range_pairs):
+        writer = pypdf.PdfWriter()
+        start, end = range_pair
+        pages: list[pypdf.PageObject] = pdf_reader.pages[start-1:end]
+        
+        for page in pages:
+            writer.add_page(page)
+        out.update({f'split_{i+1}.pdf': writer})
+    
+    return out
+
+
+def __extract_pages(pdf_reader: pypdf.PdfReader, extract_pages: list[int]) -> pypdf.PdfWriter:
+    pdf_writer = pypdf.PdfWriter()
+
+    for i in extract_pages:
+        try:
+            page = pdf_reader.pages[i-1]
+            pdf_writer.add_page(page)
+        except IndexError:
+            continue
+
+    return pdf_writer
 
 
 @router.post('/merge')
@@ -168,8 +203,62 @@ async def unlock_pdf(
     )
 
 
-@router.post('/split', deprecated=True)
+@router.post('/split')
 async def split_pdf(
-        upload_file: Annotated[UploadFile, Depends(file_upload)]
+        upload_file: Annotated[UploadFile, Depends(file_upload)],
+        split_mode: Annotated[SplitMode, SplitMode.PAGE_EXTRACT],
+        ranges: Annotated[list[int], Query()] = [],
+        extract_pages: Annotated[list[int], Query()] = [],
 ):
-    ...
+    """
+    Split a PDF file into multiple files, or extract pages from a PDF file.
+    - **upload_file**: File to be split.
+    - **split_mode**: Mode to split the PDF file, either 'ranges' or 'extract'.
+    - **ranges**: Range of pages to split the PDF file, mandatory if split_mode is 'ranges'.
+    - **extract_pages**: Pages to extract from the PDF file, mandatory if split_mode is 'extract'.
+    """
+    reader = pypdf.PdfReader(upload_file.file)
+    buffer = None
+    writer = ...
+    headers = ...
+    
+    if split_mode is SplitMode.PAGE_RANGES:
+        if not ranges:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='ranges is required when using page_ranges mode',
+                headers={'X-Error': 'RangesRequired'}
+            )
+        files = __split_pdf(reader, ranges)
+        buffer = __zip_files(files)
+        headers = {
+            'Content-Type': 'application/zip',
+            'Content-Disposition': f'attachment; filename=split_pdf.zip'
+        }
+        
+    elif split_mode is SplitMode.PAGE_EXTRACT:
+        if not extract_pages:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='extract_pages is required when using page_extract mode',
+                headers={'X-Error': 'ExtractPagesRequired'}
+            )
+        
+        writer = __extract_pages(reader, extract_pages)
+        buffer = __to_bytes(writer)
+        headers = {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': f'attachment; filename=extracted_pages.pdf'
+        }
+
+    if buffer:
+        return StreamingResponse(
+            content=iter([buffer.getvalue()]),
+            media_type='application/pdf',
+            headers=headers # type: ignore
+        )
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail='invalid split mode',
+        headers={'X-Error': 'InvalidSplitMode'}
+    )

@@ -15,7 +15,7 @@ class AuthUser(BaseUser):
 
 class PublicUser(BaseUser):
     class Config:
-        orm_mode = True
+        from_attributes = True
 
     user_id: int
     is_active: bool
