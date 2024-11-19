@@ -1,18 +1,14 @@
 {
-	"folders": [
-		{
-			"path": "."
-		}
-	],
-	"settings": {
-		"cSpell.caseSensitive": false,
-		"cSpell.allowCompoundWords": true,
-		"material-icon-theme.folders.theme": "classic",
-		"cSpell.words": [
-			"dotenv",
-			"pydantic",
-			"pypdf"
-		],
-		"python.analysis.typeCheckingMode": "standard"
-	}
+  "folders": [
+    {
+      "path": "."
+    }
+  ],
+  "settings": {
+    "cSpell.caseSensitive": false,
+    "cSpell.allowCompoundWords": true,
+    "cSpell.words": ["dotenv", "pydantic", "pypdf"],
+    "python.analysis.typeCheckingMode": "standard",
+    "autopep8.args": ["-max-line-length=120"]
+  }
 }

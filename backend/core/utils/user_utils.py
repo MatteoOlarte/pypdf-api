@@ -6,7 +6,7 @@ from ..models import user as models
 from ..schemas import user as schemas
 
 
-def create_user(db: Session, *, user_in: schemas.AuthUser):
+def create_user(db: Session, *, user_in: schemas.UserCreate):
     sha256 = hashlib.sha256()
     sha256.update(user_in.password.encode('utf-8'))
     user_in.password = sha256.hexdigest()

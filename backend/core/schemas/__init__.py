@@ -1,8 +1,8 @@
 from .token import Token
-from .user import AuthUser, PublicUser
+from .user import UserCreate, UserSchema
 
 __all__ = [
     'Token',
-    'AuthUser',
-    'PublicUser'
+    'UserCreate',
+    'UserSchema'
 ]
