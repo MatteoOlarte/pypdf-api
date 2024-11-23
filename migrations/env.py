@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 
 from backend.core.db import Base
-from backend.core.models import (user)
+from backend.core.models import (filemodel, user)
 
 
 

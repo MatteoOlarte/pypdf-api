@@ -3,11 +3,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 import jwt
-from dotenv import load_dotenv
 from fastapi import APIRouter, Depends, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
+from .. import config
 from ..core import errors
 from ..core.models.user import ModelUser
 from ..core.schemas import Token
@@ -15,13 +15,12 @@ from ..core.schemas import user as schemas
 from ..core.utils import user_utils
 from ..dependencies import get_current_user, get_db
 
-load_dotenv('.env')
 router = APIRouter(
     prefix='/accounts',
     tags=['Accounts']
 )
-SECRET_KEY = os.getenv('T_KEY')
-ALGORITHM = os.getenv('E_ALGORITHM')
+SECRET_KEY = config.SECRET_KEY
+ALGORITHM = config.ALGORITHM
 oauth2 = OAuth2PasswordBearer(tokenUrl='/accounts/authenticate/sign-in')
 
 

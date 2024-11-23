@@ -1,6 +1,18 @@
 from fastapi import HTTPException
 from fastapi import status
 
+class HTTPError(Exception):
+    """Base class for all HTTP errors."""
+
+    def __init__(self, message: str, status_code: int = 500, *args: object) -> None:
+        super().__init__(message, *args)
+        self.message = message
+        self.status_code = status_code
+
+    def to_dict(self) -> dict:
+        """Convert the error to a dictionary representation."""
+        return {"error": self.message, "status_code": self.status_code}
+
 
 EMAIL_IN_USE_ERROR = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
@@ -34,3 +46,27 @@ INACTIVE_USER_ERROR = HTTPException(
         "X-Error": 'InactiveUser'
     }
 )
+
+FILE_NOT_FOUND_ERROR = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail='File not found',
+    headers={
+        'X-Error': 'FileNotFound'
+    }
+)
+
+INVALID_FILE_ERROR = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="Invalid file upload: the file does not have a valid name. Please provide a valid file.",
+    headers={
+        "X-Error": "InvalidFileUpload"
+    }
+)
+
+# FILE_TOO_LARGE_EXCEPTION = HTTPException(
+#     status_code=status.HTTP_400_BAD_REQUEST,
+#     detail=f"File size is larger than {max_size} MB limit.",
+#     headers={
+#         "X-Error": "FileTooLarge"
+#     }
+# )

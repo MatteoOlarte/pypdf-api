@@ -15,7 +15,7 @@ def create_user(db: Session, *, user_in: schemas.UserCreate):
     db.add(db_user)
     db.commit()
     db.refresh(db_user)
-    db.rollback()
+    # db.rollback()
     return db_user
 
 

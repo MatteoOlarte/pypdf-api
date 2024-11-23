@@ -2,7 +2,7 @@ import hashlib
 from typing import Self
 
 from sqlalchemy import Boolean, Index, Integer, String
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from ..db import Base
 
@@ -20,6 +20,8 @@ class ModelUser(Base):
     password: Mapped[str] = mapped_column(String, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    uploaded_files = relationship('UploadFileModel')
+    
     def validate_password(self: Self, password: str) -> bool:
         sha256 = hashlib.sha256()
         sha256.update(password.encode('utf-8'))
