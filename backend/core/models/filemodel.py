@@ -32,8 +32,20 @@ class UploadFileModel(Base):
 
     owner = relationship('ModelUser', back_populates='uploaded_files')
 
-    async def upload(self: Self, session: Session, file: UploadFile, *, sub_directories: str = 'uploads') -> Any | str:
-        path = await upload_file(file, sub_directories=sub_directories)
+    @property
+    def full_name(self: Self) -> str:
+        return f'{self.name}{self.extension}'
+
+    @property
+    def is_uploaded(self: Self) -> bool:
+        return bool(self.path)
+
+    @property
+    def absolute_path(self: Self) -> Optional[str]:
+        return get_file_path(self.path)
+
+    async def upload(self: Self, session: Session, file: UploadFile, *, directory_name: str = 'uploads') -> Any | str:
+        path = await upload_file(file, sub_directories=self.__get_directory_name(directory_name))
 
         try:
             self.path = path.replace('\\', '/')
@@ -63,17 +75,9 @@ class UploadFileModel(Base):
             session.rollback()
             raise ValueError(f"Error deleting the file: {str(error)}")
 
-    @property
-    def full_name(self: Self) -> str:
-        return f'{self.name}{self.extension}'
-
-    @property
-    def is_uploaded(self: Self) -> bool:
-        return bool(self.path)
-
-    @property
-    def absolute_path(self: Self) -> Optional[str]:
-        return get_file_path(self.path)
+    def __get_directory_name(self: Self, directories: str) -> str:
+        owner = self.owner
+        return os.path.join(owner.email, directories) if owner else os.path.join('temp', directories)
 
     def __str__(self: Self) -> str:
         return f"UploadFileModel(pk={self.pk}, name={self.name}, extension={self.extension}, path={self.path}, owner_id={self.owner_id}, content_type={self.content_type}, created={self.created}, updated={self.updated})"

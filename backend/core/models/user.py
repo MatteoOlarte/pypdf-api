@@ -16,8 +16,8 @@ class ModelUser(Base):
     pk: Mapped[int] = mapped_column(Integer, primary_key=True)
     first_name: Mapped[str] = mapped_column(String(length=255), nullable=False)
     last_name: Mapped[str] = mapped_column(String(length=255), nullable=False)
-    email: Mapped[str] = mapped_column(String, nullable=False)
-    password: Mapped[str] = mapped_column(String, nullable=False)
+    email: Mapped[str] = mapped_column(String(length=255), nullable=False)
+    password: Mapped[str] = mapped_column(String(length=255), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     uploaded_files = relationship('UploadFileModel')
