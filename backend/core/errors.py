@@ -63,6 +63,14 @@ INVALID_FILE_ERROR = HTTPException(
     }
 )
 
+FILE_ACCESS_DENIED = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="You do not have permission to access this file.",
+    headers={
+        "X-Error": "ForbiddenFileAccess"
+    }
+)
+
 # FILE_TOO_LARGE_EXCEPTION = HTTPException(
 #     status_code=status.HTTP_400_BAD_REQUEST,
 #     detail=f"File size is larger than {max_size} MB limit.",

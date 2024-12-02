@@ -19,7 +19,7 @@ from ..dependencies import file_uploads, file_upload
 from ..core.utils import pair
 
 MAX_FILE_SIZE = 200
-router = APIRouter(prefix='/pdf_files', tags=['PDF Utilities'])
+router = APIRouter(prefix='/pdf-utilities', tags=['PDF Utilities'])
 non_pdf_error = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
     detail='file is not a PDF',
@@ -81,45 +81,45 @@ def __extract_pages(pdf_reader: pypdf.PdfReader, extract_pages: list[int]) -> py
     return pdf_writer
 
 
-# @router.post('/merge')
-# async def merge_pdf(
-#         upload_files: Annotated[list[UploadFile], Depends(file_uploads)],
-#         strict: Annotated[bool, Query(..., description='strict mode')] = False
-# ) -> StreamingResponse:
-#     """
-#     Merge multiple PDF files into a single PDF file.
-#     - **strict**: If false then non-PDF files will be ignored. Otherwise, an error will be raised.
-#     - **upload_files**: Files to be merged.
-#     """
-#     if len(upload_files) < 2:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail='at least 2 files are required for merging',
-#             headers={
-#                 'X-Error': 'InsufficientFiles'
-#             }
-#         )
-#     writer = pypdf.PdfWriter()
-#     headers = {}
+@router.post('/merge')
+async def merge_pdf(
+        upload_files: Annotated[list[UploadFile], Depends(file_uploads)],
+        strict: Annotated[bool, Query(..., description='strict mode')] = False
+) -> StreamingResponse:
+    """
+    Merge multiple PDF files into a single PDF file.
+    - **strict**: If false then non-PDF files will be ignored. Otherwise, an error will be raised.
+    - **upload_files**: Files to be merged.
+    """
+    if len(upload_files) < 2:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail='at least 2 files are required for merging',
+            headers={
+                'X-Error': 'InsufficientFiles'
+            }
+        )
+    writer = pypdf.PdfWriter()
+    headers = {}
 
-#     for file in upload_files:
-#         try:
-#             await file.seek(0)
-#             reader = pypdf.PdfReader(file.file)
-#             writer.append(reader)
-#         except PyPdfError:
-#             if strict:
-#                 raise non_pdf_error
-#             continue
-#     headers.update({
-#         'Content-Type': 'application/pdf',
-#         'Content-Disposition': f'attachment; filename=merged_pdf.pdf'
-#     })
-#     return StreamingResponse(
-#         content=iter([__to_bytes(writer).getvalue()]),
-#         media_type='application/pdf',
-#         headers=headers
-#     )
+    for file in upload_files:
+        try:
+            await file.seek(0)
+            reader = pypdf.PdfReader(file.file)
+            writer.append(reader)
+        except PyPdfError:
+            if strict:
+                raise non_pdf_error
+            continue
+    headers.update({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': f'attachment; filename=merged_pdf.pdf'
+    })
+    return StreamingResponse(
+        content=iter([__to_bytes(writer).getvalue()]),
+        media_type='application/pdf',
+        headers=headers
+    )
 
 
 # @router.post('/protect')

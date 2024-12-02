@@ -30,43 +30,52 @@ async def upload_file(
 @router.get('/', response_model=FileModelSchema)
 async def get_file(
     file_url: str,
-    session: Annotated[Session, Depends(get_db)]
+    session: Annotated[Session, Depends(get_db)],
+    user: Annotated[ModelUser, Depends(current_user_or_none)]
 ) -> UploadFileModel:
     filemodel = file_utils.get_filemodel(session, file_url=file_url)
 
     if not filemodel:
         raise errors.FILE_NOT_FOUND_ERROR
-
-    return filemodel
+    if (not filemodel.owner) or (user and user == filemodel.owner):
+        return filemodel
+    
+    raise errors.FILE_ACCESS_DENIED
 
 
 @router.delete('/')
 async def delete_file(
     file_url: str,
-    session: Annotated[Session, Depends(get_db)]
+    session: Annotated[Session, Depends(get_db)],
+    user: Annotated[ModelUser, Depends(current_user_or_none)]
 ) -> dict[str, bool]:
     filemodel = file_utils.get_filemodel(session, file_url=file_url)
 
     if not filemodel:
         raise errors.FILE_NOT_FOUND_ERROR
-
-    await filemodel.delete(session)
-    return {'status': True}
+    if (not filemodel.owner) or (user and user == filemodel.owner): 
+        await filemodel.delete(session)
+        return {'status': True}
+    
+    raise errors.FILE_ACCESS_DENIED
 
 
 @router.get('/download')
 async def download_file(
     file_url: str,
-    session: Annotated[Session, Depends(get_db)]
+    session: Annotated[Session, Depends(get_db)],
+    user: Annotated[ModelUser, Depends(current_user_or_none)]
 ) -> FileResponse:
     filemodel = file_utils.get_filemodel(session, file_url=file_url)
 
     if not filemodel or not filemodel.absolute_path:
         raise errors.FILE_NOT_FOUND_ERROR
-
-    return FileResponse(
-        filemodel.absolute_path,
-        filename=filemodel.full_name,
-        media_type=filemodel.content_type,
-        headers={"Content-Disposition": f"attachment; filename={filemodel.full_name}"}
-    )
+    if (not filemodel.owner) or (user and user == filemodel.owner): 
+        return FileResponse(
+            filemodel.absolute_path,
+            filename=filemodel.full_name,
+            media_type=filemodel.content_type,
+            headers={"Content-Disposition": f"attachment; filename={filemodel.full_name}"}
+        )
+    
+    raise errors.FILE_ACCESS_DENIED

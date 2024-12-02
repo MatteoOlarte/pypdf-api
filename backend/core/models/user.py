@@ -1,5 +1,5 @@
 import hashlib
-from typing import Self
+from typing import Self, override
 
 from sqlalchemy import Boolean, Index, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -26,3 +26,7 @@ class ModelUser(Base):
         sha256 = hashlib.sha256()
         sha256.update(password.encode('utf-8'))
         return self.password == sha256.hexdigest()
+    
+    @override
+    def __eq__(self: Self, other) -> bool:
+        return self.pk == other.pk
