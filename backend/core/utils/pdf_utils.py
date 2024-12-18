@@ -14,7 +14,7 @@ async def merge_pdf(db: Session, task: Task, strict: bool) -> FileModel:
     filemodels = task.files
     writer = pypdf.PdfWriter()
     strategy = LocalPdfWriterFile(writer, 'merged-pdf.pdf')
-    result = file_utils.ResponseFileModelFactory('merged-pdf.pdf', 'application/pdf', task).create_filemodel()
+    result = file_utils.ResponseFileModelFactory('merged-pdf.pdf', 'application/pdf').create_filemodel()
 
     if len(filemodels) < 2:
         raise errors.MERGE_ERROR
@@ -33,7 +33,7 @@ async def merge_pdf(db: Session, task: Task, strict: bool) -> FileModel:
 
 async def lock_pdf(db: Session, task: Task, password: str) -> FileModel:
     filemodel = task.files[0]
-    result = file_utils.ResponseFileModelFactory('locked-pdf.pdf', 'application/pdf', task).create_filemodel()
+    result = file_utils.ResponseFileModelFactory('locked-pdf.pdf', 'application/pdf').create_filemodel()
     strategy: LocalPdfWriterFile
 
     try:
@@ -52,7 +52,7 @@ async def lock_pdf(db: Session, task: Task, password: str) -> FileModel:
 
 async def unlock_pdf(db: Session, task: Task, password: str) -> FileModel:
     filemodel = task.files[0]
-    result = file_utils.ResponseFileModelFactory('unlocked-pdf.pdf', 'application/pdf', task).create_filemodel()
+    result = file_utils.ResponseFileModelFactory('unlocked-pdf.pdf', 'application/pdf').create_filemodel()
     strategy: LocalPdfWriterFile
 
     try:

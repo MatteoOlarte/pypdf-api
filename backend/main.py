@@ -17,7 +17,7 @@ def __init_services():
 
 
 db.Base.metadata.create_all(bind=db.engine)
-app = FastAPI(title='iHate PyPDF')
+app = FastAPI(title='iHate PyPDF', version='1.0.0')
 app.include_router(routers.accounts.router)
 app.include_router(routers.pdf_tools.router)
 app.include_router(routers.storage.router)

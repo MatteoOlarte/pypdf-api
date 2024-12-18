@@ -38,11 +38,10 @@ class UploadFileModelFactory(FileModelFactory):
 
 
 class ResponseFileModelFactory(FileModelFactory):
-    def __init__(self: Self, filename: str, content_type: str, task: Task) -> None:
+    def __init__(self: Self, filename: str, content_type: str) -> None:
         super().__init__()
         self.filename = filename
         self.content_type = content_type
-        self.task = task
 
     @override
     def create_filemodel(self: Self) -> FileModel:
@@ -51,7 +50,7 @@ class ResponseFileModelFactory(FileModelFactory):
         filemodel.name = name
         filemodel.extension = extension
         filemodel.content_type = self.content_type
-        filemodel.task = self.task
+        filemodel.task = None
         return filemodel
 
 

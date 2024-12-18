@@ -84,7 +84,6 @@ class LocalPdfWriterFile(StorageStrategy):
 
     @override
     async def upload(self: Self, upload_to: str) -> str:
-        print(UPLOAD_DIR)
         dir_path: str = _make_dirs(os.path.join(UPLOAD_DIR, upload_to))
         filepath: str = os.path.join(dir_path, _get_hashes_file_name(self.filename))
 

@@ -18,9 +18,7 @@ class Task(Base):
     updated: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
     status_id: Mapped[int] = mapped_column(ForeignKey('task_status.status_id', ondelete='SET NULL'), nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), nullable=True)
-    result_id: Mapped[Optional[int]] = mapped_column(ForeignKey(
-        'files.file_id', ondelete='SET NULL'), nullable=True, unique=True)
-
+    result_id: Mapped[Optional[int]] = mapped_column(ForeignKey('files.file_id', ondelete='SET NULL'), nullable=True, unique=True)
     status: Mapped['TaskStatus'] = relationship(back_populates='tasks', foreign_keys='Task.status_id')
     user: Mapped[Optional['User']] = relationship(back_populates='tasks', foreign_keys='Task.user_id')
     result: Mapped[Optional['FileModel']] = relationship(foreign_keys='Task.result_id')

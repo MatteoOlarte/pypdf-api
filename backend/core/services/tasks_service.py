@@ -4,7 +4,7 @@ from typing import Sequence, Optional
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from ..models import Task, TaskStatus, User, FileModel
+from ..models import Task, TaskStatus, User
 
 
 class Statuses(Enum):
@@ -53,6 +53,10 @@ def set_task_canceled(db: Session, task: Task) -> Task:
     task.status_id = Statuses.CANCELED.value.pk
     task.update(db)
     return task
+
+
+def is_completed(task: Task) -> bool:
+    return task.status == Statuses.COMPLETED.value
 
 
 def init_service(db: Session) -> None:

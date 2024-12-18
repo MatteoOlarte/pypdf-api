@@ -126,6 +126,12 @@ FORBIDDEN_TASK = HTTPException(
     headers={"X-Error": "AccessDenied"}
 )
 
+COMPLETED_TASK = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail="This Task has already been completed and cannot be modified.",
+    headers={"X-Error": "TaskAlreadyCompleted"}
+)
+
 # FILE_TOO_LARGE_EXCEPTION = HTTPException(
 #     status_code=status.HTTP_400_BAD_REQUEST,
 #     detail=f"File size is larger than {max_size} MB limit.",

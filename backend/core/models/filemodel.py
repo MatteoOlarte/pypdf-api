@@ -28,9 +28,9 @@ class FileModel(Base):
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
     created: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    task_id: Mapped[int] = mapped_column(ForeignKey('tasks.task_id', ondelete='RESTRICT'))
+    task_id: Mapped[Optional[int]] = mapped_column(ForeignKey('tasks.task_id', ondelete='RESTRICT'), nullable=True)
 
-    task: Mapped['Task'] = relationship(back_populates='files', foreign_keys='FileModel.task_id')
+    task: Mapped[Optional['Task']] = relationship(back_populates='files', foreign_keys='FileModel.task_id')
 
     @property
     def full_name(self: Self) -> str:

@@ -1,7 +1,6 @@
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, status, UploadFile
-from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from ..core import errors
@@ -26,7 +25,6 @@ async def upload_file(
         file_model = file_utils.UploadFileModelFactory(file, task).create_filemodel()
         strategy = ss.LocalUploadFile(file)
         await file_model.upload(session, strategy, upload_to=path)
-        task.add_file(file_model, session)
         return file_model
     raise errors.INVALID_TASK
 
@@ -49,30 +47,9 @@ async def delete_file(
 
     if not filemodel:
         raise errors.FILE_NOT_FOUND_ERROR
-    if (not filemodel.task.user) or (user and user == filemodel.task.user):
+    if (filemodel.task) and (filemodel.task.check_ownership(user)):
         deleted = await filemodel.delete(session, strategy)
         return {'status': deleted}
-
-    raise errors.FILE_ACCESS_DENIED
-
-
-@router.get('/download')
-async def download_file(
-        file_url: str,
-        session: Annotated[Session, Depends(get_db)],
-        user: Annotated[User, Depends(current_user_or_none)]
-) -> FileResponse:
-    filemodel = file_utils.get_filemodel(session, file_url=file_url)
-
-    if not filemodel or not filemodel.absolute_path:
-        raise errors.FILE_NOT_FOUND_ERROR
-    if (not filemodel.task.user) or (user and user == filemodel.task.user):
-        return FileResponse(
-            filemodel.absolute_path,
-            filename=filemodel.full_name,
-            media_type=filemodel.content_type,
-            headers={"Content-Disposition": f"attachment; filename={filemodel.full_name}"}
-        )
 
     raise errors.FILE_ACCESS_DENIED
 
