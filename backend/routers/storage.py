@@ -7,6 +7,7 @@ from ..core import errors
 from ..core.models import User, Task, FileModel
 from ..core.schemas import FileModelSchema
 from ..core.services import storage_service as ss
+from ..core.services import tasks_service as ts
 from ..core.utils import file_utils
 from ..dependencies import current_user_or_none, get_db, file_upload, get_task, get_file_or_raise
 
@@ -20,11 +21,12 @@ async def upload_file(
         task: Annotated[Task, Depends(get_task)],
         user: Annotated[Optional[User], Depends(current_user_or_none)]
 ) -> FileModel:
-    if task.check_ownership(user):
+    if task.check_ownership(user) and not ts.is_completed(task):
         path = __get_target_path(user)
         file_model = file_utils.UploadFileModelFactory(file, task).create_filemodel()
         strategy = ss.LocalUploadFile(file)
         await file_model.upload(session, strategy, upload_to=path)
+        task.update(session)
         return file_model
     raise errors.INVALID_TASK
 

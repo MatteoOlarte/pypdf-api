@@ -44,11 +44,13 @@ async def merge_pdf(
 
     try:
         task.result = await pdf_utils.merge_pdf(db, task, strict)
-        ts.set_task_completed(db, task)
+        ts.set_task_completed(task)
+        ts.set_process(task, ts.ProcessTypes.MERGE)
         task.update(db)
         return task
     except Exception as error:
-        ts.set_task_failed(db, task)
+        ts.set_task_failed(task)
+        task.update(db)
         raise error
 
 
@@ -65,7 +67,7 @@ async def lock_pdf(
     - **uploaded_files**: Files to be protected.
     - **password**: Password to protect the PDF file.
     """
-    background_tasks.add_task(__clear_files, db, task)
+    background_tasks.add_task(__clear_files, db, task.pk)
     if not task.check_ownership(user):
         raise errors.FORBIDDEN_TASK
     if ts.is_completed(task):
@@ -73,11 +75,13 @@ async def lock_pdf(
 
     try:
         task.result = await pdf_utils.lock_pdf(db, task, password)
-        ts.set_task_completed(db, task)
+        ts.set_task_completed(task)
+        ts.set_process(task, ts.ProcessTypes.LOCK)
         task.update(db)
         return task
     except Exception as error:
-        ts.set_task_failed(db, task)
+        ts.set_task_failed(task)
+        task.update(db)
         raise error
 
 
@@ -94,7 +98,7 @@ async def unlock_pdf(
     - **upload_file**: File to be unlocked.
     - **password**: Password to unlock the PDF file.
     """
-    background_tasks.add_task(__clear_files, db, task)
+    background_tasks.add_task(__clear_files, db, task.pk)
     if not task.check_ownership(user):
         raise errors.FORBIDDEN_TASK
     if ts.is_completed(task):
@@ -102,9 +106,11 @@ async def unlock_pdf(
 
     try:
         task.result = await pdf_utils.unlock_pdf(db, task, password)
-        ts.set_task_completed(db, task)
+        ts.set_task_completed(task)
+        ts.set_process(task, ts.ProcessTypes.UNLOCK)
         task.update(db)
         return task
     except Exception as error:
-        ts.set_task_failed(db, task)
+        ts.set_task_failed(task)
+        task.update(db)
         raise error

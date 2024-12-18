@@ -62,7 +62,7 @@ async def login_user(
     db: Annotated[Session, Depends(get_db)]
 ) -> dict[str, str]:
     user = __authenticate_user(db, user_email=auth_form.username, password=auth_form.password)
-    token = __create_token({'sub': user.email}, expires_delta=timedelta(minutes=1))
+    token = __create_token({'sub': user.email}, expires_delta=timedelta(minutes=30))
 
     return {'access_token': token, 'token_type': 'bearer'}
 

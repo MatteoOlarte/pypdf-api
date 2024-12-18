@@ -46,8 +46,9 @@ def cancel_task(
         task: Annotated[Task, Depends(get_task)],
         db: Annotated[Session, Depends(get_db)]
 ) -> Task:
-    if task.check_ownership(user):
-        ts.set_task_canceled(db, task=task)
+    if task.check_ownership(user) and not ts.is_completed(task):
+        ts.set_task_canceled(task)
+        task.update(db)
         return task
     raise errors.INVALID_TASK
 
@@ -65,6 +66,8 @@ async def download(
         raise errors.FILE_NOT_FOUND_ERROR
     if task.check_ownership(user):
         background_tasks.add_task(__delete_result, task.pk, db)
+        ts.set_task_dowloaded(task)
+        task.update(db)
         return FileResponse(
             filemodel.absolute_path,
             filename=filemodel.full_name,
@@ -72,4 +75,4 @@ async def download(
             headers={"Content-Disposition": f"attachment; filename={filemodel.full_name}"}
         )
 
-    raise errors.FILE_ACCESS_DENIED
+    raise errors.FORBIDDEN_TASK

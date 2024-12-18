@@ -16,9 +16,12 @@ class Task(Base):
     pk: Mapped[int] = mapped_column(Integer, name='task_id', primary_key=True)
     created: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
     updated: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
-    status_id: Mapped[int] = mapped_column(ForeignKey('task_status.status_id', ondelete='SET NULL'), nullable=False)
+    process_id: Mapped[int] = mapped_column(ForeignKey('task_process_type.process_id', ondelete='RESTRICT'), nullable=False)
+    status_id: Mapped[int] = mapped_column(ForeignKey('task_status.status_id', ondelete='RESTRICT'), nullable=False)
     user_id: Mapped[Optional[int]] = mapped_column(ForeignKey('users.user_id', ondelete='CASCADE'), nullable=True)
     result_id: Mapped[Optional[int]] = mapped_column(ForeignKey('files.file_id', ondelete='SET NULL'), nullable=True, unique=True)
+    
+    process: Mapped['TaskProcess'] = relationship(back_populates='tasks', foreign_keys='Task.process_id')
     status: Mapped['TaskStatus'] = relationship(back_populates='tasks', foreign_keys='Task.status_id')
     user: Mapped[Optional['User']] = relationship(back_populates='tasks', foreign_keys='Task.user_id')
     result: Mapped[Optional['FileModel']] = relationship(foreign_keys='Task.result_id')
@@ -68,3 +71,18 @@ class TaskStatus(Base):
 
     def __repr__(self: Self) -> str:
         return f'TaskStatus=(pk={self.pk}, name=\"{self.name}\")'
+    
+
+class TaskProcess(Base):
+    __tablename__ = 'task_process_type'
+
+    pk: Mapped[int] = mapped_column(Integer, name='process_id', primary_key=True)
+    name: Mapped[str] = mapped_column(String(250), nullable=False)
+
+    tasks: Mapped[list['Task']] = relationship(back_populates='process')
+
+    def __eq__(self: Self, other) -> bool:
+        return self.pk == other.pk
+
+    def __str__(self: Self) -> str:
+        return f'{self.name}'
