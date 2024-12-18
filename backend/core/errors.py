@@ -72,11 +72,35 @@ FILE_ACCESS_DENIED = HTTPException(
     }
 )
 
-INSUFFICIENT_FILES_MERGE_ERROR = HTTPException(
+MERGE_ERROR = HTTPException(
     status_code=status.HTTP_400_BAD_REQUEST,
-    detail='at least 2 files are required for merging',
+    detail='',
     headers={
-        'X-Error': 'InsufficientFiles'
+        'X-Error': 'PdfMergeError'
+    }
+)
+
+LOCK_ERROR = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail='',
+    headers={
+        'X-Error': 'PdfLockError'
+    }
+)
+
+UNLOCK_ERROR = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail='',
+    headers={
+        'X-Error': 'PdfUnlockError'
+    }
+)
+
+UNLOCK_ERROR_WP = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail='',
+    headers={
+        'X-Error': 'PdfUnlockErrorWrongPassword'
     }
 )
 
@@ -94,6 +118,12 @@ INVALID_TASK = HTTPException(
     headers={
         'X-Error': 'InvalidTask'
     }
+)
+
+FORBIDDEN_TASK = HTTPException(
+    status_code=status.HTTP_403_FORBIDDEN,
+    detail="You do not have permission to access this Task.",
+    headers={"X-Error": "AccessDenied"}
 )
 
 # FILE_TOO_LARGE_EXCEPTION = HTTPException(

@@ -15,21 +15,6 @@ class Statuses(Enum):
     CANCELED = TaskStatus(pk=5, name='task_canceled')
 
 
-def init_service(db: Session) -> None:
-    results: Sequence[int] = db.execute(select(TaskStatus.pk)).scalars().all()
-
-    try:
-        statuses: list[TaskStatus] = [
-            TaskStatus(pk=s.value.pk, name=s.value.name) for s in Statuses if s.value.pk not in results
-        ]
-        if len(statuses) > 0:
-            db.add_all(statuses)
-            db.commit()
-    except Exception as error:
-        print(error)
-        db.rollback()
-
-
 def create_task(db: Session, /, *, user: Optional[User]) -> Task:
     task: Task = Task()
     task.status_id = Statuses.CREATED.value.pk
@@ -68,3 +53,18 @@ def set_task_canceled(db: Session, task: Task) -> Task:
     task.status_id = Statuses.CANCELED.value.pk
     task.update(db)
     return task
+
+
+def init_service(db: Session) -> None:
+    results: Sequence[int] = db.execute(select(TaskStatus.pk)).scalars().all()
+
+    try:
+        statuses: list[TaskStatus] = [
+            TaskStatus(pk=s.value.pk, name=s.value.name) for s in Statuses if s.value.pk not in results
+        ]
+        if len(statuses) > 0:
+            db.add_all(statuses)
+            db.commit()
+    except Exception as error:
+        print(error)
+        db.rollback()

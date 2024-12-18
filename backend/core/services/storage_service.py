@@ -90,8 +90,7 @@ class LocalPdfWriterFile(StorageStrategy):
 
         with open(filepath, 'wb') as file:
             self.writer.write(file)
-
-        return upload_to
+        return filepath.replace('\\', '/')
 
     @override
     async def delete(self: Self, file_path: str) -> bool:

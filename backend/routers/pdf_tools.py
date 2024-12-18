@@ -1,7 +1,7 @@
 import io
 import zipfile
 from enum import Enum
-from typing import Annotated
+from typing import Annotated, Optional
 
 import pypdf
 from fastapi import (
@@ -15,14 +15,15 @@ from fastapi import (
 from fastapi.responses import StreamingResponse
 from pypdf.errors import PyPdfError
 
-from ..dependencies import file_uploads, file_upload, get_file_or_raise, get_db, get_files
+from ..dependencies import get_db, get_task, current_user_or_none
 from ..core.utils import pair, pdf_utils
-from ..core.models import FileModel
-from ..core.schemas.responses import ProcessResponse
+from ..core.models import FileModel, Task, User
+from ..core.schemas import TaskSchema
 from ..core import errors
 from sqlalchemy.orm import Session
 
-from ..core.services.storage_service import LocalPdfWriterFile
+from ..core.services import storage_service as ss
+from ..core.services import tasks_service as ts
 
 router = APIRouter(prefix='/pdf-utilities', tags=['PDF Utilities'])
 
@@ -61,135 +62,79 @@ class SplitMode(str, Enum):
 #     return pdf_writer
 
 
-@router.post('/merge')
+@router.post('/merge', response_model=TaskSchema)
 async def merge_pdf(
         db: Annotated[Session, Depends(get_db)],
-        filemodels: Annotated[list[FileModel], Depends(get_files)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[User, Depends(current_user_or_none)],
         strict: Annotated[bool, Query(..., description='strict mode')] = False
-):
+) -> Task:
     '''
     Merge multiple PDF files into a single PDF file.
     - **strict**: If false then non-PDF files will be ignored. Otherwise, an error will be raised.
     - **upload_files**: Files to be merged.
     '''
-    writer = pypdf.PdfWriter()
-    merged_file = ...
-    response_schema = ...
-
-    if len(filemodels) < 2:
-        raise errors.INSUFFICIENT_FILES_MERGE_ERROR
+    if not task.check_ownership(user):
+        raise errors.FORBIDDEN_TASK
     
-    for filemodel in filemodels:
-        try:
-            reader = pypdf.PdfReader(filemodel.absolute_path)
-            writer.append(reader)
-        except:
-            if strict:
-                raise errors.NOT_PDF_ERROR
-            continue
-    
-    merge_pdf = LocalPdfWriterFile(writer, 'merged-pdf.pdf')
-    await merge_pdf.upload('temp/results')
+    try:
+        task.result = await pdf_utils.merge_pdf(db, task, strict)
+        ts.set_task_completed(db, task)
+        task.update(db)
+        return task
+    except Exception as error:
+        ts.set_task_failed(db, task)
+        raise error
     
 
+@router.post('/lock', response_model=TaskSchema)
+async def lock_pdf(
+        db: Annotated[Session, Depends(get_db)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[User, Depends(current_user_or_none)],
+        password: Annotated[str, Query(..., description='password to unlock the PDF file')]
+) -> Task:
+    '''
+    Protect a PDF file with a password.
+    - **uploaded_files**: Files to be protected.
+    - **password**: Password to protect the PDF file.
+    '''
+    if not task.check_ownership(user):
+        raise errors.FORBIDDEN_TASK
+    
+    try:
+        task.result = await pdf_utils.lock_pdf(db, task, password)
+        ts.set_task_completed(db, task)
+        task.update(db)
+        return task
+    except Exception as error:
+        ts.set_task_failed(db, task)
+        raise error
+    
 
-# @router.post('/merge')
-# async def merge_pdf(
-#     upload_files: Annotated[list[str], Depends(get_files_or_404)],
-#     strict: Annotated[bool, Query(..., description='strict mode')] = False
-# ) -> StreamingResponse:
-#     """
-#     Merge multiple PDF files into a single PDF file.
-#     - **strict**: If false then non-PDF files will be ignored. Otherwise, an error will be raised.
-#     - **upload_files**: Files to be merged.
-#     """
-#     ...
-#     if len(upload_files) < 2:
-#         raise HTTPException(
-#             status_code=status.HTTP_400_BAD_REQUEST,
-#             detail='at least 2 files are required for merging',
-#             headers={
-#                 'X-Error': 'InsufficientFiles'
-#             }
-#         )
-#     writer = pypdf.PdfWriter()
-#     headers = {}
-
-#     for file in upload_files:
-#         try:
-#             await file.seek(0)
-#             reader = pypdf.PdfReader(file.file)
-#             writer.append(reader)
-#         except PyPdfError:
-#             if strict:
-#                 raise non_pdf_error
-#             continue
-#     headers.update({
-#         'Content-Type': 'application/pdf',
-#         'Content-Disposition': f'attachment; filename=merged_pdf.pdf'
-#     })
-#     return StreamingResponse(
-#         content=iter([__to_bytes(writer).getvalue()]),
-#         media_type='application/pdf',
-#         headers=headers
-#     )
-
-
-# @router.post('/lock', response_model=PDFProcessResponse)
-# async def lock_pdf(
-#         db: Annotated[Session, Depends(get_db)],
-#         filemodel: Annotated[UploadFileModel, Depends(get_file_or_raise)],
-#         password: Annotated[str, Query(..., description='password to unlock the PDF file')],
-# ) -> PDFProcessResponse:
-#     '''
-#     Protect a PDF file with a password.
-#     - **uploaded_files**: Files to be protected.
-#     - **password**: Password to protect the PDF file.
-#     '''
-#     response_schema = pdf_utils.SinglePDFProcessResponse(filemodel)
-
-#     try:
-#         reader = pypdf.PdfReader(filemodel.absolute_path)
-#         writer = pypdf.PdfWriter()
-#         writer.append(reader)
-#         writer.encrypt(password, None, True)
-#         pdf_utils.write_bites(filemodel.absolute_path, writer)
-#         filemodel.save(db)
-#         return response_schema.create('TaskSuccess', 'PDFLock')
-#     except:
-#         db.rollback()
-#         return response_schema.create('TaskFailed', 'PDFLock')
-
-
-# @router.post('/unlock', response_model=PDFProcessResponse)
-# async def unlock_pdf(
-#         db: Annotated[Session, Depends(get_db)],
-#         filemodel: Annotated[UploadFileModel, Depends(get_file_or_raise)],
-#         password: Annotated[str, Query(..., description='password to unlock the PDF file')]
-# ) -> PDFProcessResponse:
-#     '''
-#     Unlock a PDF file with a password.
-#     - **upload_file**: File to be unlocked.
-#     - **password**: Password to unlock the PDF file.
-#     '''
-#     response_schema = pdf_utils.SinglePDFProcessResponse(filemodel)
-
-#     try:
-#         reader = pypdf.PdfReader(filemodel.absolute_path)
-#         writer = ...
-
-#         if reader.is_encrypted:
-#             reader.decrypt(password)
-#             writer = pypdf.PdfWriter(clone_from=reader)
-#             pdf_utils.write_bites(filemodel.absolute_path, writer)
-#             filemodel.save(db)
-#         return response_schema.create('TaskSuccess', 'PDFUnlock')
-#     except PyPdfError:
-#         db.rollback()
-#         return response_schema.create('WrongPassword', 'PDFUnlock')
-#     except Exception:
-#         db.rollback()
-#         return response_schema.create('TaskFailed', 'PDFUnlock')
+@router.post('/unlock', response_model=TaskSchema)
+async def unlock_pdf(
+        db: Annotated[Session, Depends(get_db)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[User, Depends(current_user_or_none)],
+        password: Annotated[str, Query(..., description='password to unlock the PDF file')]
+) -> Task:
+    '''
+    Unlock a PDF file with a password.
+    - **upload_file**: File to be unlocked.
+    - **password**: Password to unlock the PDF file.
+    '''
+    if not task.check_ownership(user):
+        raise errors.FORBIDDEN_TASK
+    
+    try:
+        task.result = await pdf_utils.unlock_pdf(db, task, password)
+        ts.set_task_completed(db, task)
+        task.update(db)
+        return task
+    except Exception as error:
+        ts.set_task_failed(db, task)
+        raise error
 
 
 # @router.post('/split')
@@ -251,3 +196,4 @@ async def merge_pdf(
 #         detail='invalid split mode',
 #         headers={'X-Error': 'InvalidSplitMode'}
 #     )
+
