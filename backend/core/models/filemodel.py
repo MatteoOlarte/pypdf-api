@@ -1,36 +1,36 @@
 import os
 from datetime import datetime
-from typing import Any, Optional, Self
-from uuid import uuid4
+from typing import Optional, Self, TYPE_CHECKING
 
-from fastapi import UploadFile
-from sqlalchemy import DATETIME, ForeignKey, Index, Integer, String, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String, func
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from .. import errors
 from ..db import Base
+from ..services.storage_service import StorageStrategy
 from ... import config
 
-UPLOAD_DIRECTORY = "static"
+if TYPE_CHECKING:
+    from . import Task
 
 
-class UploadFileModel(Base):
-    __tablename__ = 'upload_files'
+class FileModel(Base):
+    __tablename__ = 'files'
     __table_args__ = (
-        Index('idx_file_name', 'name', 'extension'),
-        Index('idx_file_path', 'path', unique=True)
+        Index('idx_files_name', 'name', 'extension'),
+        Index('idx_files_path', 'path', unique=True)
     )
 
-    pk: Mapped[int] = mapped_column(Integer, primary_key=True)
+    pk: Mapped[int] = mapped_column(Integer, name='file_id', primary_key=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False)
     extension: Mapped[str] = mapped_column(String(100), nullable=False)
-    path: Mapped[str] = mapped_column(String(250), nullable=False)
-    owner_id: Mapped[int] = mapped_column(ForeignKey('users.pk', ondelete='CASCADE'), nullable=True)
+    path: Mapped[str] = mapped_column(String(500), nullable=False)
     content_type: Mapped[str] = mapped_column(String(100), nullable=False)
-    created: Mapped[datetime] = mapped_column(DATETIME, default=func.now(), nullable=False)
-    updated: Mapped[datetime] = mapped_column(DATETIME, default=func.now(), onupdate=func.now, nullable=False)
+    created: Mapped[datetime] = mapped_column(DateTime, default=func.now(), nullable=False)
+    updated: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+    task_id: Mapped[int] = mapped_column(ForeignKey('tasks.task_id', ondelete='RESTRICT'))
 
-    owner = relationship('ModelUser', back_populates='uploaded_files')
+    task: Mapped['Task'] = relationship(back_populates='files', foreign_keys='FileModel.task_id')
 
     @property
     def full_name(self: Self) -> str:
@@ -41,86 +41,50 @@ class UploadFileModel(Base):
         return bool(self.path)
 
     @property
-    def absolute_path(self: Self) -> Optional[str]:
-        return get_file_path(self.path)
+    def absolute_path(self: Self) -> str:
+        if absolute_path := _get_file_path(self.path):
+            return absolute_path
+        raise errors.FILE_NOT_FOUND_ERROR
 
-    async def upload(self: Self, session: Session, file: UploadFile, *, directory_name: str = 'uploads') -> Any | str:
-        path = await upload_file(file, sub_directories=self.__get_directory_name(directory_name))
+    async def upload(self: Self, db: Session, strategy: StorageStrategy, *, upload_to: str) -> str:
+        path = await strategy.upload(upload_to)
 
         try:
-            self.path = path.replace('\\', '/')
-            print(self.path)
-            session.add(self)
-            session.commit()
-            session.refresh(self)
+            self.path = path
+            db.add(self)
+            db.commit()
+            db.refresh(self)
             return path
         except Exception as error:
-            await delete_file(path)
-            session.rollback()
+            await strategy.delete(path)
+            db.rollback()
             raise ValueError(f"Error uploading the file: {str(error)}")
 
-    async def delete(self: Self, session: Session) -> bool:
+    async def delete(self: Self, db: Session, strategy: StorageStrategy) -> bool:
         if not self.path:
             raise errors.FILE_NOT_FOUND_ERROR
 
         try:
-            was_deleted = await delete_file(self.path)
+            deleted = await strategy.delete(self.path)
 
-            if was_deleted:
-                session.delete(self)
-                session.commit()
+            if deleted:
+                db.delete(self)
+                db.commit()
+            return deleted
+        except Exception:
+            db.rollback()
+            return False
 
-            return was_deleted
-        except Exception as error:
-            session.rollback()
-            raise ValueError(f"Error deleting the file: {str(error)}")
+    def update(self: Self, db: Session) -> None:
+        self.updated = func.now()
+        db.add(self)
+        db.commit()
+        db.refresh(self)
 
-    def __get_directory_name(self: Self, directories: str) -> str:
-        owner = self.owner
-        return os.path.join(owner.email, directories) if owner else os.path.join('temp', directories)
-
-    def __str__(self: Self) -> str:
-        return f"UploadFileModel(pk={self.pk}, name={self.name}, extension={self.extension}, path={self.path}, owner_id={self.owner_id}, content_type={self.content_type}, created={self.created}, updated={self.updated})"
-
-
-async def upload_file(
-    file: UploadFile,
-    *,
-    sub_directories: str = 'uploads'
-) -> Any | str:
-    dir_path: str = __make_dirs(os.path.join(UPLOAD_DIRECTORY, sub_directories))
-    file_name: str = __get_hashes_file_name(file.filename)  # type: ignore
-    file_path: str = os.path.join(dir_path, file_name)
-
-    with open(file_path, "wb") as buffer:
-        buffer.write(await file.read())
-
-    return file_path
+    def __eq__(self: Self, other) -> bool:
+        return self.pk == other.pk
 
 
-async def delete_file(
-    file_url: str
-) -> bool:
-    file_path = os.path.join(config.BASE_DIR, file_url)
-
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        return True
-    return False
-
-
-def get_file_path(
-    file_url: str,
-) -> str | None:
-    file_path = os.path.join(config.BASE_DIR, file_url)
-    return file_path if os.path.exists(file_path) else None
-
-
-def __get_hashes_file_name(filename: str) -> str:
-    unique_id = uuid4().hex[:16]
-    return f'file_{unique_id}_{filename}'
-
-
-def __make_dirs(dir_path: str) -> str:
-    os.makedirs(dir_path, exist_ok=True)
-    return dir_path
+def _get_file_path(file_path: str) -> Optional[str]:
+    full_path = os.path.join(config.BASE_DIR, file_path)
+    return full_path if os.path.exists(file_path) else None

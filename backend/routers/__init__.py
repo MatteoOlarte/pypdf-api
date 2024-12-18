@@ -1,3 +1,8 @@
-from .accounts import router
-from .pdf_files import router
-from .storage import router
+from . import accounts, pdf_tools, storage, tasks
+
+__all__ = [
+    'accounts',
+    'pdf_tools',
+    'storage',
+    'tasks'
+]

@@ -7,14 +7,12 @@
   "settings": {
     "cSpell.caseSensitive": false,
     "cSpell.allowCompoundWords": true,
-    "cSpell.words": [
-      "dotenv",
-      "ondelete",
-      "onupdate",
-      "pydantic",
-      "pypdf"
-    ],
+    "cSpell.words": ["dotenv", "ondelete", "onupdate", "pydantic", "pypdf"],
     "python.analysis.typeCheckingMode": "standard",
-    "autopep8.args": ["--max-line-length=120"]
+    "autopep8.args": ["--max-line-length=120"],
+    "symbols.folders.associations": {
+      "backend": "folder-yellow-code",
+      "schemas": "folder-helpers"
+    }
   }
 }

@@ -4,18 +4,17 @@ from typing import Annotated, Any
 
 import jwt
 from fastapi import APIRouter, Depends, status
-from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 from .. import config
 from ..core import errors
-from ..core.models.user import ModelUser
+from ..core.models.user import User
 from ..core.schemas import Token
 from ..core.schemas import user as schemas
 from ..core.utils import user_utils
 from ..dependencies import current_user_or_raise, get_db
 
-__oauth2 = OAuth2PasswordBearer(tokenUrl='/accounts/authenticate/sign-in')
 router = APIRouter(
     prefix='/accounts',
     tags=['Accounts']
@@ -24,8 +23,8 @@ SECRET_KEY = config.SECRET_KEY
 ALGORITHM = config.ALGORITHM
 
 
-def __authenticate_user(db: Session, *, user_email: str, password: str) -> ModelUser:
-    db_user: ModelUser = user_utils.get_by_email(db, email=user_email)
+def __authenticate_user(db: Session, *, user_email: str, password: str) -> User:
+    db_user: User = user_utils.get_by_email(db, email=user_email)
 
     if not db_user:
         raise errors.USER_NOT_FOUND_ERROR
@@ -47,8 +46,8 @@ def __create_token(data: dict[str, Any], *, expires_delta: timedelta = timedelta
 async def create_user(
         user_in: schemas.UserCreate,
         db: Annotated[Session, Depends(get_db)]
-) -> ModelUser:
-    user_db: ModelUser = user_utils.get_by_email(db, email=user_in.email)
+) -> User:
+    user_db: User = user_utils.get_by_email(db, email=user_in.email)
     create = ...
 
     if user_db:
@@ -69,5 +68,5 @@ async def login_user(
 
 
 @router.get('/my-profile', response_model=schemas.UserSchema)
-async def user_profile(current: Annotated[ModelUser, Depends(current_user_or_raise)]) -> ModelUser:
+async def user_profile(current: Annotated[User, Depends(current_user_or_raise)]) -> User:
     return current

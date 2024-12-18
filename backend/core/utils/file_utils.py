@@ -6,51 +6,75 @@ from fastapi import File, HTTPException, status, UploadFile
 from sqlalchemy.orm import Session
 
 from ..errors import INVALID_FILE_ERROR
-from ..models import ModelUser, UploadFileModel
+from ..models import FileModel, Task
 
 
-class UploadFileModelFactory(ABC):
-    def split_filename(self: Self, filename: str) -> tuple[str, str]:
-        """
-        Splits the given filename into the name and extension.
-
-        :param filename: The full filename including the extension.
-        :return: A tuple containing the name without the extension and the extension itself.
-        """
-        parts = filename.split('.')
-        name = '.'.join(parts[0:-1])
-        extension = f'.{parts[-1]}'
-        return name, extension
-
+class FileModelFactory(ABC):
     @abstractmethod
-    def create_filemodel(self: Self, file: UploadFile, owner: Optional[ModelUser]) -> UploadFileModel:
+    def create_filemodel(self: Self) -> FileModel:
         pass
 
 
-class SimpleUploadFileFactory(UploadFileModelFactory):
-    @override
-    def create_filemodel(self: Self, file: UploadFile, owner: Optional[ModelUser]) -> UploadFileModel:
-        fiename = file.filename
+class UploadFileModelFactory(FileModelFactory):
+    def __init__(self: Self, upload_file: UploadFile, task: Task) -> None:
+        super().__init__()
+        self.upload_file = upload_file
+        self.task = task
 
-        if fiename:
-            name, extension = self.split_filename(fiename)
-            filemodel = UploadFileModel()
+    @override
+    def create_filemodel(self: Self) -> FileModel:
+        filename = self.upload_file.filename
+        content_type = self.upload_file.content_type
+
+        if filename and content_type:
+            filemodel = FileModel()
+            name, extension = split_filename(filename)
             filemodel.name = name
             filemodel.extension = extension
-            filemodel.content_type = file.content_type or ''
-            filemodel.owner = owner
+            filemodel.content_type = content_type
+            filemodel.task = self.task
             return filemodel
-
         raise INVALID_FILE_ERROR
 
 
+class ResponseFileModelFactory(FileModelFactory):
+    def __init__(self: Self, filename: str, content_type: str, task: Task) -> None:
+        super().__init__()
+        self.filename = filename
+        self.content_type = content_type
+        self.task = task
+
+    @override
+    def create_filemodel(self: Self) -> FileModel:
+        filemodel = FileModel()
+        name, extension = split_filename(self.filename)
+        filemodel.name = name
+        filemodel.extension = extension
+        filemodel.content_type = self.content_type
+        filemodel.task = self.task
+        return filemodel
+
+
 def get_filemodel(
-    db: Session,
-    *,
-    file_url: str,
-) -> Optional[UploadFileModel]:
-    filemodel = db.query(UploadFileModel).where(UploadFileModel.path == file_url).first()
+        db: Session,
+        *,
+        file_url: str,
+) -> Optional[FileModel]:
+    filemodel = db.query(FileModel).where(FileModel.path == file_url).first()
     return filemodel
+
+
+def split_filename(filename: str) -> tuple[str, str]:
+    '''
+    Splits the given filename into the name and extension.
+
+    :param filename: The full filename including the extension.
+    :return: A tuple containing the name without the extension and the extension itself.
+    '''
+    parts = filename.split('.')
+    name = '.'.join(parts[0:-1])
+    extension = f'.{parts[-1]}'
+    return name, extension
 
 
 def check_size_or_raise(

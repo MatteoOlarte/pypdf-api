@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 # Load environment variables from a .env file
 load_dotenv()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+UPLOAD_DIR = os.path.join(BASE_DIR, 'static')
 
 # SECRET_KEY is used for security purposes, such as signing tokens or cookies.
 # It is loaded from the environment variable T_KEY. This key should be kept secret.

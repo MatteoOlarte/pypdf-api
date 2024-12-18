@@ -1,7 +1,10 @@
-from .filemodel import UploadFileModel
-from .user import ModelUser
+from .user import User
+from .task import Task, TaskStatus
+from .filemodel import FileModel
 
 __all__ = [
-    "UploadFileModel",
-    "ModelUser",
+    'Task',
+    'User',
+    'FileModel',
+    'TaskStatus'
 ]

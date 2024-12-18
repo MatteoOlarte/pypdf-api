@@ -1,6 +1,7 @@
 from fastapi import HTTPException
 from fastapi import status
 
+
 class HTTPError(Exception):
     """Base class for all HTTP errors."""
 
@@ -68,6 +69,30 @@ FILE_ACCESS_DENIED = HTTPException(
     detail="You do not have permission to access this file.",
     headers={
         "X-Error": "ForbiddenFileAccess"
+    }
+)
+
+INSUFFICIENT_FILES_MERGE_ERROR = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail='at least 2 files are required for merging',
+    headers={
+        'X-Error': 'InsufficientFiles'
+    }
+)
+
+NOT_PDF_ERROR = HTTPException(
+    status_code=status.HTTP_400_BAD_REQUEST,
+    detail='file is not a PDF',
+    headers={
+        'X-Error': 'NonPDFFile'
+    }
+)
+
+INVALID_TASK = HTTPException(
+    status_code=status.HTTP_404_NOT_FOUND,
+    detail='Task is invalid or not found',
+    headers={
+        'X-Error': 'InvalidTask'
     }
 )
 

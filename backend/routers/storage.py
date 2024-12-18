@@ -4,78 +4,81 @@ from fastapi import APIRouter, Depends, status, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from ..core.services import storage_service as ss
+from ..core.services import tasks_service as ts
 from ..core import errors
-from ..core.models import UploadFileModel, ModelUser
+from ..core.models import User, Task, FileModel
 from ..core.schemas import FileModelSchema
 from ..core.utils import file_utils
-from ..dependencies import current_user_or_none, get_db
-from ..dependencies import file_upload
+from ..dependencies import current_user_or_none, get_db, file_upload, get_task, get_file_or_raise
 
 router = APIRouter(prefix='/files', tags=['File Storage'])
 
 
 @router.post('/', status_code=status.HTTP_201_CREATED, response_model=FileModelSchema)
 async def upload_file(
-    file: Annotated[UploadFile, Depends(file_upload)],
-    session: Annotated[Session, Depends(get_db)],
-    user: Annotated[Optional[ModelUser], Depends(current_user_or_none)]
-) -> UploadFileModel:
-    print(user)
-    file_model = file_utils.SimpleUploadFileFactory().create_filemodel(file, user)
-    await file_model.upload(session, file)
-
-    return file_model
+        file: Annotated[UploadFile, Depends(file_upload)],
+        session: Annotated[Session, Depends(get_db)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[Optional[User], Depends(current_user_or_none)]
+) -> FileModel:
+    if task.check_ownership(user):
+        path = __get_target_path(user)
+        file_model = file_utils.UploadFileModelFactory(file, task).create_filemodel()
+        strategy = ss.LocalUploadFile(file)
+        await file_model.upload(session, strategy, upload_to=path)
+        task.add_file(file_model, session)
+        return file_model
+    raise errors.INVALID_TASK
 
 
 @router.get('/', response_model=FileModelSchema)
 async def get_file(
-    file_url: str,
-    session: Annotated[Session, Depends(get_db)],
-    user: Annotated[ModelUser, Depends(current_user_or_none)]
-) -> UploadFileModel:
-    filemodel = file_utils.get_filemodel(session, file_url=file_url)
-
-    if not filemodel:
-        raise errors.FILE_NOT_FOUND_ERROR
-    if (not filemodel.owner) or (user and user == filemodel.owner):
-        return filemodel
-    
-    raise errors.FILE_ACCESS_DENIED
+        filemodel: Annotated[FileModel, Depends(get_file_or_raise)]
+) -> FileModel:
+    return filemodel
 
 
 @router.delete('/')
 async def delete_file(
-    file_url: str,
-    session: Annotated[Session, Depends(get_db)],
-    user: Annotated[ModelUser, Depends(current_user_or_none)]
+        file_url: str,
+        session: Annotated[Session, Depends(get_db)],
+        user: Annotated[User, Depends(current_user_or_none)]
 ) -> dict[str, bool]:
     filemodel = file_utils.get_filemodel(session, file_url=file_url)
+    strategy = ss.LocalExistingFile(filemodel.path)  # type: ignore
 
     if not filemodel:
         raise errors.FILE_NOT_FOUND_ERROR
-    if (not filemodel.owner) or (user and user == filemodel.owner): 
-        await filemodel.delete(session)
-        return {'status': True}
-    
+    if (not filemodel.task.user) or (user and user == filemodel.task.user):
+        deleted = await filemodel.delete(session, strategy)
+        return {'status': deleted}
+
     raise errors.FILE_ACCESS_DENIED
 
 
 @router.get('/download')
 async def download_file(
-    file_url: str,
-    session: Annotated[Session, Depends(get_db)],
-    user: Annotated[ModelUser, Depends(current_user_or_none)]
+        file_url: str,
+        session: Annotated[Session, Depends(get_db)],
+        user: Annotated[User, Depends(current_user_or_none)]
 ) -> FileResponse:
     filemodel = file_utils.get_filemodel(session, file_url=file_url)
 
     if not filemodel or not filemodel.absolute_path:
         raise errors.FILE_NOT_FOUND_ERROR
-    if (not filemodel.owner) or (user and user == filemodel.owner): 
+    if (not filemodel.task.user) or (user and user == filemodel.task.user):
         return FileResponse(
             filemodel.absolute_path,
             filename=filemodel.full_name,
             media_type=filemodel.content_type,
             headers={"Content-Disposition": f"attachment; filename={filemodel.full_name}"}
         )
-    
+
     raise errors.FILE_ACCESS_DENIED
+
+
+def __get_target_path(user: Optional[User]) -> str:
+    if user:
+        return f'{user.email}/uploads'
+    return 'temp/uploads'
