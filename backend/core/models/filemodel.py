@@ -42,9 +42,7 @@ class FileModel(Base):
 
     @property
     def absolute_path(self: Self) -> str:
-        if absolute_path := _get_file_path(self.path):
-            return absolute_path
-        raise errors.FILE_NOT_FOUND_ERROR
+        return self.path
 
     async def upload(self: Self, db: Session, strategy: StorageStrategy, *, upload_to: str) -> str:
         path = await strategy.upload(upload_to)
@@ -83,8 +81,3 @@ class FileModel(Base):
 
     def __eq__(self: Self, other) -> bool:
         return self.pk == other.pk
-
-
-def _get_file_path(file_path: str) -> Optional[str]:
-    full_path = os.path.join(config.BASE_DIR, file_path)
-    return full_path if os.path.exists(file_path) else None

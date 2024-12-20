@@ -114,3 +114,57 @@ async def unlock_pdf(
         ts.set_task_failed(task)
         task.update(db)
         raise error
+    
+
+@router.post('/split/range', response_model=TaskSchema)
+async def split_pdf(
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[User, Depends(current_user_or_none)],
+        ranges: Annotated[list[int], Query()],
+        merge_after: bool = False
+) -> Task:
+    background_tasks.add_task(__clear_files, db, task.pk)
+    if not task.check_ownership(user):
+        raise errors.FORBIDDEN_TASK
+    if ts.is_completed(task):
+        raise errors.COMPLETED_TASK
+    
+    try:
+        task.result = await pdf_utils.rangesplit_pdf(db, task, ranges, merge_after)
+        ts.set_task_completed(task)
+        ts.set_process(task, ts.ProcessTypes.SPLIT)
+        task.update(db)
+        return task
+    except Exception as error:
+        ts.set_task_failed(task)
+        task.update(db)
+        raise error
+    
+
+@router.post('/split/pages', response_model=TaskSchema)
+async def extract_pages(
+        background_tasks: BackgroundTasks,
+        db: Annotated[Session, Depends(get_db)],
+        task: Annotated[Task, Depends(get_task)],
+        user: Annotated[User, Depends(current_user_or_none)],
+        pages: Annotated[list[int], Query()],
+        merge_after: bool = False
+) -> Task:
+    background_tasks.add_task(__clear_files, db, task.pk)
+    if not task.check_ownership(user):
+        raise errors.FORBIDDEN_TASK
+    if ts.is_completed(task):
+        raise errors.COMPLETED_TASK
+    
+    try:
+        task.result = await pdf_utils.pagesplit_pdf(db, task, pages, merge_after)
+        ts.set_task_completed(task)
+        ts.set_process(task, ts.ProcessTypes.SPLIT)
+        task.update(db)
+        return task
+    except Exception as error:
+        ts.set_task_failed(task)
+        task.update(db)
+        raise error

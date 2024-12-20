@@ -1,4 +1,6 @@
 import os
+import io
+import zipfile
 from abc import ABC, abstractmethod
 from typing import Self, override
 from uuid import uuid4
@@ -94,6 +96,35 @@ class LocalPdfWriterFile(StorageStrategy):
     @override
     async def delete(self: Self, file_path: str) -> bool:
         return _delete_file(file_path)
+    
+
+class LocalPDFZipFile(StorageStrategy):
+    def __init__(self: Self, writers: list[tuple[str, PdfWriter]], filename: str) -> None:
+        super().__init__()
+        self.writers = writers
+        self.filename = filename
+
+    @override
+    async def upload(self: Self, upload_to: str) -> str:
+        dir_path: str = _make_dirs(os.path.join(UPLOAD_DIR, upload_to))
+        filepath: str = os.path.join(dir_path, _get_hashes_file_name(self.filename))
+
+        with zipfile.ZipFile(filepath, 'w', zipfile.ZIP_DEFLATED) as file:
+            for filename, writer in self.writers:
+                pdf_io = self.__to_bytes(writer)
+                file.writestr(filename, pdf_io.getvalue())
+        return filepath.replace('\\', '/')
+    
+    @override
+    async def delete(self: Self, file_path: str) -> bool:
+        return _delete_file(file_path)
+    
+    @staticmethod
+    def __to_bytes(pdf_writer: PdfWriter) -> io.BytesIO:
+        buffer = io.BytesIO()
+        pdf_writer.write(buffer)
+        buffer.seek(0)
+        return buffer
 
 
 def _delete_file(file_path: str):

@@ -21,6 +21,7 @@ class ProcessTypes(Enum):
     MERGE = TaskProcess(pk=2, name='pdf_merge')
     LOCK = TaskProcess(pk=3, name='pdf_lock')
     UNLOCK = TaskProcess(pk=4, name='pdf_unlock')
+    SPLIT = TaskProcess(pk=5, name='pdf_split')
 
 
 def create_task(db: Session, /, *, user: Optional[User]) -> Task:
