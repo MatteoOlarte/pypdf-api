@@ -43,7 +43,7 @@ def __create_token(data: dict[str, Any], *, expires_delta: timedelta = timedelta
 
 
 @router.post('/authenticate/sign-up', response_model=schemas.UserSchema, status_code=status.HTTP_201_CREATED)
-async def create_user(
+def create_user(
         user_in: schemas.UserCreate,
         db: Annotated[Session, Depends(get_db)]
 ) -> User:
@@ -57,7 +57,7 @@ async def create_user(
 
 
 @router.post('/authenticate/sign-in', response_model=Token)
-async def login_user(
+def login_user(
     auth_form: Annotated[OAuth2PasswordRequestForm, Depends()],
     db: Annotated[Session, Depends(get_db)]
 ) -> dict[str, str]:
@@ -67,6 +67,19 @@ async def login_user(
     return {'access_token': token, 'token_type': 'bearer'}
 
 
-@router.get('/my-profile', response_model=schemas.UserSchema)
-async def user_profile(current: Annotated[User, Depends(current_user_or_raise)]) -> User:
-    return current
+@router.put('/authenticate/edit', response_model=schemas.UserSchema)
+async def edit_user(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User, Depends(current_user_or_raise)],
+    edit: schemas.UserEdit
+) -> User:
+    user.first_name = edit.first_name
+    user.last_name = edit.last_name
+    user.email = edit.email
+    user.update(db)
+    return user
+
+
+@router.get('/users/current', response_model=schemas.UserSchema)
+def user_profile(user: Annotated[User, Depends(current_user_or_raise)]) -> User:
+    return user
