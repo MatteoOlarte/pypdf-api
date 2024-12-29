@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 
 class FileModelSchema(BaseModel):
+    pk: int
     full_name: str
     content_type: str
     path: str

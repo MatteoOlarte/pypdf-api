@@ -23,7 +23,10 @@ CONNECTION_STR = os.getenv('C_STR')
 # security by restricting access to specified hosts.
 # The list includes the GitHub Pages host and the local development host.
 ALLOWED_HOSTS = [
-    "http://127.0.0.1:5500",
+    "http://localhost:5000",
+    "http://localhost:5010",
+    "http://localhost:5020",
+    "http://localhost:5030",
     os.getenv('HOST')
 ]
 
